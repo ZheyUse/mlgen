@@ -2,12 +2,16 @@
 /**
  * generate-file-structure.php
  *
- * Usage:
- *   php generate-file-structure.php create <project_name>
- *   ml create <project_name>
- *
- * Legacy usage (scaffold in current directory):
+ * Quick usage:
  *   php generate-file-structure.php
+ *
+ * With XAMPP (Windows) if `php` is not on PATH:
+ *   C:\xampp\php\php.exe generate-file-structure.php
+ *
+ * Run this from your project root to scaffold the directory structure
+ * and starter files. The script prints progress lines like:
+ *   Creating src ... OK
+ *
  */
 
 declare(strict_types=1);
@@ -17,126 +21,93 @@ if (PHP_SAPI !== 'cli') {
     exit(1);
 }
 
-$scriptName = basename($argv[0] ?? 'generate-file-structure.php');
-$command = $argv[1] ?? null;
+$projectRoot = getcwd();
 
-if ($command === '--help' || $command === '-h') {
-    printUsage($scriptName);
-    exit(0);
-}
-
-if ($command === null) {
-    $cwd = getcwd();
-    if ($cwd === false) {
-        fwrite(STDERR, "Unable to detect current working directory.\n");
-        exit(1);
-    }
-
-    $projectName = basename($cwd);
-    $ok = scaffoldProject($cwd, $projectName);
-    echo $ok ? "Project structure successfully generated.\n" : "Project generation failed.\n";
-    exit($ok ? 0 : 1);
-}
-
-if ($command === 'create') {
-    $projectName = $argv[2] ?? null;
-    if ($projectName === null || trim($projectName) === '') {
-        fwrite(STDERR, "Missing project name.\n\n");
-        printUsage($scriptName);
-        exit(1);
-    }
-
-    if (!preg_match('/^[a-zA-Z0-9][a-zA-Z0-9-_]*$/', $projectName)) {
-        fwrite(STDERR, "Invalid project name '{$projectName}'. Use letters, numbers, dash, underscore only.\n");
-        exit(1);
-    }
-
-    $cwd = getcwd();
-    if ($cwd === false) {
-        fwrite(STDERR, "Unable to detect current working directory.\n");
-        exit(1);
-    }
-
-    $projectRoot = $cwd . DIRECTORY_SEPARATOR . $projectName;
-    if (file_exists($projectRoot)) {
-        fwrite(STDERR, "Target already exists: {$projectRoot}\n");
-        exit(1);
-    }
-
-    echo "Creating project: {$projectName}\n";
-
-    if (!mkdir($projectRoot, 0777, true) && !is_dir($projectRoot)) {
-        fwrite(STDERR, "Failed to create project directory: {$projectRoot}\n");
-        exit(1);
-    }
-
-    report('dir', $projectRoot, $projectRoot, 'OK');
-
-    $ok = scaffoldProject($projectRoot, $projectName);
-    if ($ok) {
-        echo "Project created successfully\n";
-        exit(0);
-    }
-
-    echo "Project creation finished with errors\n";
+if ($projectRoot === false) {
+    fwrite(STDERR, "Unable to detect current working directory.\n");
     exit(1);
 }
 
-if (in_array($command, ['make:page', 'make:component', 'serve'], true)) {
-    fwrite(STDERR, "Command '{$command}' is reserved for a future release.\n");
-    exit(2);
-}
-
-fwrite(STDERR, "Unknown command: {$command}\n\n");
-printUsage($scriptName);
-exit(1);
-
-function printUsage(string $scriptName): void
+function relativePath(string $absolutePath, string $root): string
 {
-    echo "ML CLI\n";
-    echo "Usage:\n";
-    echo "  php {$scriptName} create <project_name>\n";
-    echo "  ml create <project_name>\n";
-    echo "  php {$scriptName}                # legacy scaffold in current directory\n";
-    echo "\n";
-    echo "Reserved commands:\n";
-    echo "  ml make:page <name>\n";
-    echo "  ml make:component <name>\n";
-    echo "  ml serve\n";
-}
+    $normalized = str_replace('\\', '/', $absolutePath);
+    $normalizedRoot = rtrim(str_replace('\\', '/', $root), '/');
 
-function scaffoldProject(string $projectRoot, string $projectName): bool
-{
-    $projectTitle = humanizeProjectName($projectName);
-
-    $directories = [
-        'src',
-        'src/assets',
-        'src/assets/css',
-        'src/assets/js',
-        'src/assets/images',
-        'src/assets/fonts',
-        'src/config',
-        'src/controllers',
-        'src/models',
-        'src/modals',
-        'src/modals/login-modal',
-        'src/pages',
-        'src/pages/home',
-        'public',
-        'public/components',
-    ];
-
-    foreach ($directories as $relativeDir) {
-        $absoluteDir = $projectRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativeDir);
-        if (!ensureDirectory($absoluteDir, $projectRoot)) {
-            return false;
-        }
+    if (str_starts_with($normalized, $normalizedRoot . '/')) {
+        return substr($normalized, strlen($normalizedRoot) + 1);
     }
 
-    $templates = [
-        '.env' => <<<'ENV'
-APP_NAME="{{PROJECT_TITLE}}"
+    return $normalized;
+}
+
+function report(string $type, string $absolutePath, string $root, string $status): void
+{
+    $label = $type === 'dir' ? 'Creating' : 'Creating';
+    echo $label . ' ' . relativePath($absolutePath, $root) . ' ... ' . $status . PHP_EOL;
+}
+
+function ensureDirectory(string $path, string $root): void
+{
+    if (is_dir($path)) {
+        report('dir', $path, $root, 'EXISTS');
+        return;
+    }
+
+    if (!mkdir($path, 0777, true) && !is_dir($path)) {
+        report('dir', $path, $root, 'FAILED');
+        return;
+    }
+
+    report('dir', $path, $root, 'OK');
+}
+
+function ensureFile(string $path, string $root, string $content = ''): void
+{
+    $dir = dirname($path);
+    if (!is_dir($dir)) {
+        ensureDirectory($dir, $root);
+    }
+
+    if (file_exists($path)) {
+        report('file', $path, $root, 'EXISTS');
+        return;
+    }
+
+    $bytes = file_put_contents($path, $content);
+    if ($bytes === false) {
+        report('file', $path, $root, 'FAILED');
+        return;
+    }
+
+    report('file', $path, $root, 'OK');
+}
+
+$directories = [
+    'src',
+    'src/assets',
+    'src/assets/css',
+    'src/assets/js',
+    'src/assets/images',
+    'src/assets/fonts',
+    'src/config',
+    'src/controllers',
+    'src/models',
+    'src/modals',
+    'src/modals/login-modal',
+    'src/pages',
+    'src/pages/home',
+    'public',
+    'public/components',
+];
+
+foreach ($directories as $relativeDir) {
+    $absoluteDir = $projectRoot . DIRECTORY_SEPARATOR . $relativeDir;
+    ensureDirectory($absoluteDir, $projectRoot);
+}
+
+$templates = [
+  '.env' => <<<'ENV'
+APP_NAME="My PHP App"
 APP_ENV=local
 APP_DEBUG=true
 DB_DRIVER=mysql
@@ -148,7 +119,7 @@ DB_PASSWORD=
 DB_CHARSET=utf8mb4
 ENV,
 
-        'src/config/auth.php' => <<<'PHP'
+    'src/config/auth.php' => <<<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -158,7 +129,7 @@ return [
 ];
 PHP,
 
-        'src/config/csrf.php' => <<<'PHP'
+    'src/config/csrf.php' => <<<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -168,7 +139,7 @@ return [
 ];
 PHP,
 
-        'src/config/db.php' => <<<'PHP'
+    'src/config/db.php' => <<<'PHP'
   <?php
 
   declare(strict_types=1);
@@ -209,7 +180,7 @@ PHP,
   }
   PHP,
 
-        'src/config/env.php' => <<<'PHP'
+    'src/config/env.php' => <<<'PHP'
   <?php
 
   declare(strict_types=1);
@@ -248,7 +219,7 @@ PHP,
   }
   PHP,
 
-        'src/config/error-handling.php' => <<<'PHP'
+    'src/config/error-handling.php' => <<<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -259,7 +230,7 @@ return [
 ];
 PHP,
 
-        'src/config/helper.php' => <<<'PHP'
+    'src/config/helper.php' => <<<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -272,7 +243,7 @@ if (!function_exists('asset')) {
 }
 PHP,
 
-        'src/config/login-handler.php' => <<<'PHP'
+    'src/config/login-handler.php' => <<<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -280,7 +251,7 @@ declare(strict_types=1);
 // Handle login POST here.
 PHP,
 
-        'src/config/logout-handler.php' => <<<'PHP'
+    'src/config/logout-handler.php' => <<<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -288,7 +259,7 @@ declare(strict_types=1);
 // Handle logout here.
 PHP,
 
-        'src/config/middleware.php' => <<<'PHP'
+    'src/config/middleware.php' => <<<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -296,7 +267,7 @@ declare(strict_types=1);
 // Register middleware here.
 PHP,
 
-        'src/config/session.php' => <<<'PHP'
+    'src/config/session.php' => <<<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -306,7 +277,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 PHP,
 
-        'src/controllers/login-controller.php' => <<<'PHP'
+    'src/controllers/login-controller.php' => <<<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -320,7 +291,7 @@ class LoginController
 }
 PHP,
 
-        'src/controllers/usercontroller.php' => <<<'PHP'
+    'src/controllers/usercontroller.php' => <<<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -334,7 +305,7 @@ class UserController
 }
 PHP,
 
-        'src/models/user-model.php' => <<<'PHP'
+    'src/models/user-model.php' => <<<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -345,7 +316,7 @@ class UserModel
 }
 PHP,
 
-        'src/modals/login-modal/login-modal.php' => <<<'PHP'
+    'src/modals/login-modal/login-modal.php' => <<<'PHP'
 <div class="login-modal" id="loginModal" aria-hidden="true">
   <div class="login-modal__overlay" data-close-login-modal></div>
   <div class="login-modal__content" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
@@ -451,7 +422,7 @@ PHP,
 </script>
 PHP,
 
-        'src/modals/login-modal/login-modal.css' => <<<'CSS'
+  'src/modals/login-modal/login-modal.css' => <<<'CSS'
 .login-modal {
   position: fixed;
   inset: 0;
@@ -595,20 +566,20 @@ PHP,
 }
 CSS,
 
-        'src/pages/home/home.php' => <<<'PHP'
+    'src/pages/home/home.php' => <<<'PHP'
 <section class="home-page">
   <h1>Home Page</h1>
   <p>Welcome to your scaffolded project.</p>
 </section>
 PHP,
 
-        'src/pages/home/home.css' => <<<'CSS'
+    'src/pages/home/home.css' => <<<'CSS'
 .home-page {
   padding: 2rem 1rem;
 }
 CSS,
 
-        'public/index.php' => <<<'PHP'
+    'public/index.php' => <<<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -618,7 +589,7 @@ declare(strict_types=1);
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{PROJECT_TITLE}}</title>
+  <title>My PHP Project</title>
   <link rel="stylesheet" href="index.css">
   <link rel="stylesheet" href="components/index-header.css">
   <link rel="stylesheet" href="components/hero-section.css">
@@ -635,7 +606,7 @@ declare(strict_types=1);
 </html>
 PHP,
 
-        'public/index.css' => <<<'CSS'
+    'public/index.css' => <<<'CSS'
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
 @import url('../src/assets/css/color.css');
 
@@ -651,7 +622,7 @@ body {
 }
 CSS,
 
-        'src/assets/css/color.css' => <<<'CSS'
+    'src/assets/css/color.css' => <<<'CSS'
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -665,7 +636,7 @@ CSS,
 }
 CSS,
 
-        'public/components/index-header.php' => <<<'PHP'
+    'public/components/index-header.php' => <<<'PHP'
 <header class="site-header">
   <div class="site-header__brand">
     <img src="../src/assets/images/logo1.png" alt="Company Logo" class="site-header__logo">
@@ -675,7 +646,7 @@ CSS,
 </header>
 PHP,
 
-        'public/components/index-header.css' => <<<'CSS'
+    'public/components/index-header.css' => <<<'CSS'
 .site-header {
   display: flex;
   align-items: center;
@@ -722,7 +693,7 @@ PHP,
 }
 CSS,
 
-        'public/components/hero-section.php' => <<<'PHP'
+    'public/components/hero-section.php' => <<<'PHP'
 <section class="hero-centered">
   <div class="hero-centered__bg" aria-hidden="true"></div>
   <div class="hero-centered__inner">
@@ -742,7 +713,7 @@ CSS,
 </section>
 PHP,
 
-        'public/components/hero-section.css' => <<<'CSS'
+    'public/components/hero-section.css' => <<<'CSS'
 .hero-section { padding: 56px 20px; background: var(--bg); }
 
 .hero-container { max-width: 900px; margin: 0 auto; text-align: center; padding: 48px 20px; }
@@ -776,13 +747,13 @@ PHP,
 }
 CSS,
 
-        'public/components/index-footer.php' => <<<'PHP'
+    'public/components/index-footer.php' => <<<'PHP'
 <footer class="site-footer">
   <p>&copy; <?= date('Y'); ?> M Lhuillier Financial Services, Inc.</p>
 </footer>
 PHP,
 
-        'public/components/index-footer.css' => <<<'CSS'
+    'public/components/index-footer.css' => <<<'CSS'
 .site-footer {
   margin-top: 40px;
   padding: 16px 20px;
@@ -791,10 +762,12 @@ PHP,
 }
 CSS,
 
-        'public/.README-INDEX.md' => "# Index Sections\n\nPut all your sections here for index.\n",
+    'public/.README-INDEX.md' => "# Index Sections\n\nPut all your sections here for index.\n",
 
-        'README.md' => <<<'MD'
-# {{PROJECT_TITLE}}
+    // root .htaccess is written dynamically below to include a RewriteBase
+
+    'README.md' => <<<'MD'
+# PHP Project Scaffold
 
 This repository contains a minimal PHP project scaffold and a CLI generator
 (`generate-file-structure.php`) that creates a ready-to-edit project layout
@@ -878,7 +851,7 @@ generator output and any error messages into an issue or chat for assistance.
 
 MD,
 
-        'color.md' => <<<'MD'
+    'color.md' => <<<'MD'
 :root {
   color-scheme: light;
   --bg: #f5f7fb;
@@ -891,133 +864,55 @@ MD,
   --shadow: 0 24px 40px rgba(16,24,40,0.06);
 }
 MD,
-    ];
+];
 
-    foreach ($templates as $relativeFile => $content) {
-        $absoluteFile = $projectRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativeFile);
-        $compiled = renderTemplate($content, $projectName, $projectTitle);
+foreach ($templates as $relativeFile => $content) {
+    $absoluteFile = $projectRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativeFile);
+    ensureFile($absoluteFile, $projectRoot, $content . PHP_EOL);
+}
 
-        if (!ensureFile($absoluteFile, $projectRoot, rtrim($compiled, "\r\n") . PHP_EOL)) {
-            return false;
-        }
-    }
-
-    $logoPath = $projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'logo1.png';
-    if (!file_exists($logoPath)) {
-        $transparentPng = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sM5ux8AAAAASUVORK5CYII=', true);
-        if ($transparentPng !== false) {
-            $written = file_put_contents($logoPath, $transparentPng);
-            report('file', $logoPath, $projectRoot, $written === false ? 'FAILED' : 'OK');
-            if ($written === false) {
-                return false;
-            }
-        } else {
-            report('file', $logoPath, $projectRoot, 'FAILED');
-            return false;
-        }
+$logoPath = $projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'logo1.png';
+if (!file_exists($logoPath)) {
+    $transparentPng = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sM5ux8AAAAASUVORK5CYII=', true);
+    if ($transparentPng !== false) {
+        $written = file_put_contents($logoPath, $transparentPng);
+        report('file', $logoPath, $projectRoot, $written === false ? 'FAILED' : 'OK');
     } else {
-        report('file', $logoPath, $projectRoot, 'EXISTS');
+        report('file', $logoPath, $projectRoot, 'FAILED');
     }
-
-    $projectFolder = basename($projectRoot);
-    $rewriteBase = '/' . $projectFolder . '/';
-    $htPath = $projectRoot . DIRECTORY_SEPARATOR . '.htaccess';
-    $htContent = "RewriteEngine On\nRewriteBase {$rewriteBase}\nRewriteRule ^$ public/ [R=302,L]\n";
-
-    if (file_put_contents($htPath, $htContent) === false) {
-        report('file', $htPath, $projectRoot, 'FAILED');
-        return false;
-    }
-    report('file', $htPath, $projectRoot, 'OK');
-
-    $publicHt = $projectRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . '.htaccess';
-    if (file_exists($publicHt)) {
-        try {
-            if (@unlink($publicHt)) {
-                report('file', $publicHt, $projectRoot, 'REMOVED');
-            } else {
-                report('file', $publicHt, $projectRoot, 'FAILED-REMOVE');
-            }
-        } catch (Throwable $e) {
-            report('file', $publicHt, $projectRoot, 'FAILED-REMOVE');
-        }
-    }
-
-    return true;
+} else {
+    report('file', $logoPath, $projectRoot, 'EXISTS');
 }
 
-function renderTemplate(string $content, string $projectName, string $projectTitle): string
-{
-    return strtr($content, [
-        '{{PROJECT_NAME}}' => $projectName,
-        '{{PROJECT_TITLE}}' => $projectTitle,
-    ]);
+// create a small placeholder hero illustration so the hero include shows a valid image
+
+
+// Write root .htaccess with RewriteBase derived from the project folder name.
+// This avoids Apache returning a filesystem path in the Location header.
+$projectFolder = basename($projectRoot);
+$rewriteBase = '/' . $projectFolder . '/';
+$htPath = $projectRoot . DIRECTORY_SEPARATOR . '.htaccess';
+$htContent = "RewriteEngine On\nRewriteBase {$rewriteBase}\nRewriteRule ^$ public/ [R=302,L]\n";
+
+if (file_put_contents($htPath, $htContent) === false) {
+  report('file', $htPath, $projectRoot, 'FAILED');
+} else {
+  $status = file_exists($htPath) ? 'OK' : 'FAILED';
+  report('file', $htPath, $projectRoot, $status);
 }
 
-function humanizeProjectName(string $projectName): string
-{
-    $normalized = str_replace(['-', '_'], ' ', strtolower($projectName));
-    return ucwords(trim($normalized));
-}
-
-function relativePath(string $absolutePath, string $root): string
-{
-    $normalized = str_replace('\\', '/', $absolutePath);
-    $normalizedRoot = rtrim(str_replace('\\', '/', $root), '/');
-
-    if (str_starts_with($normalized, $normalizedRoot . '/')) {
-        return substr($normalized, strlen($normalizedRoot) + 1);
+  // If a public/.htaccess exists from older setups, remove it since we now place .htaccess at project root
+  $publicHt = $projectRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . '.htaccess';
+  if (file_exists($publicHt)) {
+    try {
+      if (@unlink($publicHt)) {
+        report('file', $publicHt, $projectRoot, 'REMOVED');
+      } else {
+        report('file', $publicHt, $projectRoot, 'FAILED-REMOVE');
+      }
+    } catch (Throwable $e) {
+      report('file', $publicHt, $projectRoot, 'FAILED-REMOVE');
     }
+  }
 
-    if ($normalized === $normalizedRoot) {
-        return basename($normalizedRoot);
-    }
-
-    return $normalized;
-}
-
-function report(string $type, string $absolutePath, string $root, string $status): void
-{
-    $label = $type === 'dir' ? 'Creating' : 'Creating';
-    echo $label . ' ' . relativePath($absolutePath, $root) . ' ... ' . $status . PHP_EOL;
-}
-
-function ensureDirectory(string $path, string $root): bool
-{
-    if (is_dir($path)) {
-        report('dir', $path, $root, 'EXISTS');
-        return true;
-    }
-
-    if (!mkdir($path, 0777, true) && !is_dir($path)) {
-        report('dir', $path, $root, 'FAILED');
-        return false;
-    }
-
-    report('dir', $path, $root, 'OK');
-    return true;
-}
-
-function ensureFile(string $path, string $root, string $content = ''): bool
-{
-    $dir = dirname($path);
-    if (!is_dir($dir)) {
-        if (!ensureDirectory($dir, $root)) {
-            return false;
-        }
-    }
-
-    if (file_exists($path)) {
-        report('file', $path, $root, 'EXISTS');
-        return true;
-    }
-
-    $bytes = file_put_contents($path, $content);
-    if ($bytes === false) {
-        report('file', $path, $root, 'FAILED');
-        return false;
-    }
-
-    report('file', $path, $root, 'OK');
-    return true;
-}
+echo 'Project structure successfully generated.' . PHP_EOL;
