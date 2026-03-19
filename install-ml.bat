@@ -7,8 +7,8 @@ set "SOURCE_DIR=%~dp0"
 echo Installing ML CLI...
 echo Target: %TARGET_DIR%
 
-if not exist "%SOURCE_DIR%generate-file-structure.php" (
-  echo [ERROR] Missing source file: generate-file-structure.php
+if not exist "%SOURCE_DIR%generate-file-remote.php" (
+  echo [ERROR] Missing source file: generate-file-remote.php
   exit /b 1
 )
 
@@ -39,9 +39,10 @@ if not exist "%TARGET_DIR%" (
   echo Directory already exists: %TARGET_DIR%
 )
 
-copy /Y "%SOURCE_DIR%generate-file-structure.php" "%TARGET_DIR%\generate-file-structure.php" >nul
+rem Install the remote-loader stub as the generator to fetch the real code at runtime
+copy /Y "%SOURCE_DIR%generate-file-remote.php" "%TARGET_DIR%\generate-file-structure.php" >nul
 if errorlevel 1 (
-  echo [ERROR] Failed to copy generate-file-structure.php
+  echo [ERROR] Failed to copy generate-file-remote.php to %TARGET_DIR%\generate-file-structure.php
   exit /b 1
 )
 
