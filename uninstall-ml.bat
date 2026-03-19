@@ -1,18 +1,23 @@
 @echo off
-setlocal
+setlocal EnableExtensions
 
 set "TARGET_DIR=C:\ML CLI\Tools"
+if defined MLCLI_TARGET_DIR set "TARGET_DIR=%MLCLI_TARGET_DIR%"
+
+set "UNINSTALL_VERSION=2026.03.19.4"
 
 rem If this script is running from inside TARGET_DIR, copy to TEMP and run there.
 rem This avoids locking the folder/script while trying to delete it.
 if /I "%~1"=="--from-temp" goto :RUN_UNINSTALL
 
-if /I "%~dp0"=="%TARGET_DIR%\" (
+for %%I in ("%~dp0.") do set "SCRIPT_DIR=%%~fI"
+for %%I in ("%TARGET_DIR%\.") do set "TARGET_DIR_NORM=%%~fI"
+
+if /I "%SCRIPT_DIR%"=="%TARGET_DIR_NORM%" (
   set "TMP_RUNNER=%TEMP%\ml_uninstall_runner_%RANDOM%%RANDOM%.bat"
   copy /Y "%~f0" "%TMP_RUNNER%" >nul
   if errorlevel 1 (
-    echo [ERROR] Failed to create temporary uninstaller runner.
-    echo Try running this script as Administrator.
+    echo [FAIL] Failed to create temporary uninstaller runner.
     exit /b 1
   )
   call "%TMP_RUNNER%" --from-temp
@@ -22,69 +27,51 @@ if /I "%~dp0"=="%TARGET_DIR%\" (
 )
 
 :RUN_UNINSTALL
-
 cd /d "%TEMP%" >nul 2>&1
 
 echo Uninstalling ML CLI...
+echo Version: %UNINSTALL_VERSION%
+echo Target: %TARGET_DIR%
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$target='C:\ML CLI\Tools'; $userPath=[Environment]::GetEnvironmentVariable('Path','User'); if(-not $userPath){ Write-Output 'PATH_EMPTY'; exit 0 }; $parts=$userPath -split ';' | Where-Object { $_ -and $_.Trim() -ne '' }; $filtered=@(); foreach($p in $parts){ if($p.TrimEnd('\\') -ine $target.TrimEnd('\\')){ $filtered += $p } }; if($filtered.Count -ne $parts.Count){ [Environment]::SetEnvironmentVariable('Path',($filtered -join ';'),'User'); Write-Output 'PATH_REMOVED'; } else { Write-Output 'PATH_NOT_FOUND'; }" > "%TEMP%\ml_uninstall_path_result.txt"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$target='%TARGET_DIR%'; $userPath=[Environment]::GetEnvironmentVariable('Path','User'); if(-not $userPath){ Write-Output 'PATH_EMPTY'; exit 0 }; $parts=$userPath -split ';' | Where-Object { $_ -and $_.Trim() -ne '' }; $filtered=@(); foreach($p in $parts){ if($p.TrimEnd('\\') -ine $target.TrimEnd('\\')){ $filtered += $p } }; if($filtered.Count -ne $parts.Count){ [Environment]::SetEnvironmentVariable('Path',($filtered -join ';'),'User'); Write-Output 'PATH_REMOVED'; } else { Write-Output 'PATH_NOT_FOUND'; }" > "%TEMP%\ml_uninstall_path_result.txt"
 
 set "PATH_RESULT="
 set /p PATH_RESULT=<"%TEMP%\ml_uninstall_path_result.txt"
 del "%TEMP%\ml_uninstall_path_result.txt" >nul 2>&1
 
 if /I "%PATH_RESULT%"=="PATH_REMOVED" (
-  echo Removed C:\ML CLI\Tools from User PATH.
+  echo Removed %TARGET_DIR% from User PATH.
 ) else if /I "%PATH_RESULT%"=="PATH_NOT_FOUND" (
-  echo C:\ML CLI\Tools was not found in User PATH.
+  echo %TARGET_DIR% was not found in User PATH.
 ) else (
   echo User PATH is empty or unchanged.
 )
 
-if exist "%TARGET_DIR%" (
-  echo Removing %TARGET_DIR%...
-
-  rem Clear read-only attributes recursively to reduce delete failures
-  attrib -R "%TARGET_DIR%\*" /S /D >nul 2>&1
-
-  set "PS_SCRIPT=%TEMP%\ml_uninstall_script.ps1"
-  (echo $t = '%TARGET_DIR%') > "%PS_SCRIPT%"
-  (echo try {) >> "%PS_SCRIPT%"
-  (echo     Remove-Item -LiteralPath $t -Recurse -Force -ErrorAction Stop;) >> "%PS_SCRIPT%"
-  (echo     Write-Output 'RM_OK') >> "%PS_SCRIPT%"
-  (echo } catch {) >> "%PS_SCRIPT%"
-  (echo     Write-Output 'RM_ERR: ' + $_.Exception.Message) >> "%PS_SCRIPT%"
-  (echo     if ($_.Exception.InnerException) { Write-Output $_.Exception.InnerException.Message }) >> "%PS_SCRIPT%"
-  (echo     Write-Output 'RM_STACK:') >> "%PS_SCRIPT%"
-  (echo     Write-Output $_.ScriptStackTrace) >> "%PS_SCRIPT%"
-  (echo     exit 2) >> "%PS_SCRIPT%"
-  (echo }) >> "%PS_SCRIPT%"
-
-  powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" > "%TEMP%\ml_rm_result.txt" 2>&1
-  del "%PS_SCRIPT%" >nul 2>&1
-
-  set "RM_RESULT="
-  set /p RM_RESULT=<"%TEMP%\ml_rm_result.txt"
-  del "%TEMP%\ml_rm_result.txt" >nul 2>&1
-
-  if /I "%RM_RESULT%"=="RM_OK" (
-    echo Removed %TARGET_DIR%
-  ) else (
-    echo [ERROR] Failed to remove %TARGET_DIR%:
-    echo %RM_RESULT%
-    echo.
-    echo Additional info: listing folder contents to help debug:
-    dir "%TARGET_DIR%" /A /B 2>nul || echo [ERROR] Unable to list contents (folder may be locked)
-    echo.
-    echo Close terminals/processes using files in that folder and try again, or remove the folder manually.
-    exit /b 1
-  )
-) else (
-  echo Directory not found: %TARGET_DIR%
+if not exist "%TARGET_DIR%" (
+  echo [SUCCESS] Uninstall complete. Directory already removed.
+  exit /b 0
 )
 
-echo.
-echo Uninstall complete.
-echo Open a new terminal so PATH updates are reflected.
+echo Removing %TARGET_DIR%...
+attrib -R "%TARGET_DIR%\*" /S /D >nul 2>&1
 
+for /L %%N in (1,1,8) do (
+  if not exist "%TARGET_DIR%" goto :REMOVED
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "try{ Remove-Item -LiteralPath '%TARGET_DIR%' -Recurse -Force -ErrorAction Stop; exit 0 } catch { exit 2 }" >nul 2>&1
+  if not exist "%TARGET_DIR%" goto :REMOVED
+  timeout /t 1 /nobreak >nul
+)
+
+if exist "%TARGET_DIR%" (
+  echo [FAIL] Could not remove %TARGET_DIR%.
+  echo Close all terminals/editors using that folder, then run uninstaller again.
+  echo Remaining files:
+  dir "%TARGET_DIR%" /A /B 2>nul
+  exit /b 1
+)
+
+:REMOVED
+echo Removed %TARGET_DIR%
+echo [SUCCESS] Uninstall complete.
+echo Open a new terminal so PATH updates are reflected.
 exit /b 0
