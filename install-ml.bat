@@ -7,15 +7,9 @@ set "SOURCE_DIR=%~dp0"
 echo Installing ML CLI...
 echo Target: %TARGET_DIR%
 
-if not exist "%SOURCE_DIR%generate-file-remote.php" (
-  echo [ERROR] Missing source file: generate-file-remote.php
-  exit /b 1
-)
+rem Download required CLI files from the GitHub repo if not bundling locally.
+set "RAW_BASE=https://raw.githubusercontent.com/ZheyUse/mlgen/main"
 
-if not exist "%SOURCE_DIR%ml.bat" (
-  echo [ERROR] Missing source file: ml.bat
-  exit /b 1
-)
 
 rem If local assets are missing, we'll download them from the repository instead
 rem (don't fail the installer just because source assets aren't present).
@@ -33,15 +27,25 @@ if not exist "%TARGET_DIR%" (
 )
 
 rem Install the remote-loader stub as the generator to fetch the real code at runtime
-copy /Y "%SOURCE_DIR%generate-file-remote.php" "%TARGET_DIR%\generate-file-structure.php" >nul
+rem Download the remote-loader stub and CLI batch from the GitHub raw URLs.
+echo Downloading generate-file-remote.php as generate-file-structure.php...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try{ (New-Object Net.WebClient).DownloadFile('%RAW_BASE%/generate-file-remote.php', '%TARGET_DIR%\\generate-file-structure.php'); exit 0 } catch { exit 2 }"
 if errorlevel 1 (
-  echo [ERROR] Failed to copy generate-file-remote.php to %TARGET_DIR%\generate-file-structure.php
+  echo [ERROR] Failed to download generate-file-remote.php
   exit /b 1
 )
 
-copy /Y "%SOURCE_DIR%ml.bat" "%TARGET_DIR%\ml.bat" >nul
+echo Downloading ml.bat...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try{ (New-Object Net.WebClient).DownloadFile('%RAW_BASE%/ml.bat', '%TARGET_DIR%\\ml.bat'); exit 0 } catch { exit 2 }"
 if errorlevel 1 (
-  echo [ERROR] Failed to copy ml.bat
+  echo [ERROR] Failed to download ml.bat
+  exit /b 1
+)
+
+echo Downloading uninstall-ml.bat...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try{ (New-Object Net.WebClient).DownloadFile('%RAW_BASE%/uninstall-ml.bat', '%TARGET_DIR%\\uninstall-ml.bat'); exit 0 } catch { exit 2 }"
+if errorlevel 1 (
+  echo [ERROR] Failed to download uninstall-ml.bat
   exit /b 1
 )
 
