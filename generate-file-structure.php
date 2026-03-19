@@ -691,7 +691,7 @@ PHP,
   gap: 12px;
   padding: 12px 20px;
   background: var(--accent);
-  color: #fff;
+  color: #fff; 
 }
 
 .site-header__brand {
@@ -728,6 +728,7 @@ PHP,
 .site-header__login-btn:hover {
   background: #ffe8eb;
 }
+
 CSS,
 
         'public/components/hero-section.php' => <<<'PHP'
