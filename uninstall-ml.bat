@@ -1,20 +1,20 @@
 @echo off
 setlocal
 
-set "TARGET_DIR=C:\tools\ml"
+set "TARGET_DIR=C:\ML CLI\Tools"
 
 echo Uninstalling ML CLI...
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$target='C:\tools\ml'; $userPath=[Environment]::GetEnvironmentVariable('Path','User'); if(-not $userPath){ Write-Output 'PATH_EMPTY'; exit 0 }; $parts=$userPath -split ';' | Where-Object { $_ -and $_.Trim() -ne '' }; $filtered=@(); foreach($p in $parts){ if($p.TrimEnd('\\') -ine $target.TrimEnd('\\')){ $filtered += $p } }; if($filtered.Count -ne $parts.Count){ [Environment]::SetEnvironmentVariable('Path',($filtered -join ';'),'User'); Write-Output 'PATH_REMOVED'; } else { Write-Output 'PATH_NOT_FOUND'; }" > "%TEMP%\ml_uninstall_path_result.txt"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$target='C:\ML CLI\Tools'; $userPath=[Environment]::GetEnvironmentVariable('Path','User'); if(-not $userPath){ Write-Output 'PATH_EMPTY'; exit 0 }; $parts=$userPath -split ';' | Where-Object { $_ -and $_.Trim() -ne '' }; $filtered=@(); foreach($p in $parts){ if($p.TrimEnd('\\') -ine $target.TrimEnd('\\')){ $filtered += $p } }; if($filtered.Count -ne $parts.Count){ [Environment]::SetEnvironmentVariable('Path',($filtered -join ';'),'User'); Write-Output 'PATH_REMOVED'; } else { Write-Output 'PATH_NOT_FOUND'; }" > "%TEMP%\ml_uninstall_path_result.txt"
 
 set "PATH_RESULT="
 set /p PATH_RESULT=<"%TEMP%\ml_uninstall_path_result.txt"
 del "%TEMP%\ml_uninstall_path_result.txt" >nul 2>&1
 
 if /I "%PATH_RESULT%"=="PATH_REMOVED" (
-  echo Removed C:\tools\ml from User PATH.
+  echo Removed C:\ML CLI\Tools from User PATH.
 ) else if /I "%PATH_RESULT%"=="PATH_NOT_FOUND" (
-  echo C:\tools\ml was not found in User PATH.
+  echo C:\ML CLI\Tools was not found in User PATH.
 ) else (
   echo User PATH is empty or unchanged.
 )

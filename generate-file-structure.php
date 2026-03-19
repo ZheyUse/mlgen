@@ -34,8 +34,14 @@ if ($command === null) {
 
     $projectName = basename($cwd);
     $ok = scaffoldProject($cwd, $projectName);
-    echo $ok ? "Project structure successfully generated.\n" : "Project generation failed.\n";
-    exit($ok ? 0 : 1);
+    if ($ok) {
+      echo "Project structure successfully generated." . PHP_EOL;
+      printMadeBy();
+      exit(0);
+    }
+
+    echo "Project generation failed." . PHP_EOL;
+    exit(1);
 }
 
 if ($command === 'create') {
@@ -74,8 +80,9 @@ if ($command === 'create') {
 
     $ok = scaffoldProject($projectRoot, $projectName);
     if ($ok) {
-        echo "Project created successfully\n";
-        exit(0);
+      echo "Project created successfully\n";
+      printMadeBy();
+      exit(0);
     }
 
     echo "Project creation finished with errors\n";
@@ -619,6 +626,7 @@ declare(strict_types=1);
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{PROJECT_TITLE}}</title>
+  <link rel="icon" type="image/png" href="../src/assets/images/logo2.png">
   <link rel="stylesheet" href="index.css">
   <link rel="stylesheet" href="components/index-header.css">
   <link rel="stylesheet" href="components/hero-section.css">
@@ -902,21 +910,35 @@ MD,
         }
     }
 
-    $logoPath = $projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'logo1.png';
-    if (!file_exists($logoPath)) {
-        $transparentPng = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sM5ux8AAAAASUVORK5CYII=', true);
-        if ($transparentPng !== false) {
-            $written = file_put_contents($logoPath, $transparentPng);
-            report('file', $logoPath, $projectRoot, $written === false ? 'FAILED' : 'OK');
-            if ($written === false) {
-                return false;
-            }
-        } else {
-            report('file', $logoPath, $projectRoot, 'FAILED');
-            return false;
-        }
-    } else {
+    $transparentPng = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sM5ux8AAAAASUVORK5CYII=', true);
+    if ($transparentPng === false) {
+      report('file', $projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images', $projectRoot, 'FAILED');
+      return false;
+    }
+
+    $sourceImagesRoot = __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images';
+    foreach (['logo1.png', 'logo2.png'] as $logoFileName) {
+      $logoPath = $projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . $logoFileName;
+      if (file_exists($logoPath)) {
         report('file', $logoPath, $projectRoot, 'EXISTS');
+        continue;
+      }
+
+      $sourceLogoPath = $sourceImagesRoot . DIRECTORY_SEPARATOR . $logoFileName;
+      if (file_exists($sourceLogoPath) && is_readable($sourceLogoPath)) {
+        $copied = copy($sourceLogoPath, $logoPath);
+        report('file', $logoPath, $projectRoot, $copied ? 'OK' : 'FAILED');
+        if (!$copied) {
+          return false;
+        }
+        continue;
+      }
+
+      $written = file_put_contents($logoPath, $transparentPng);
+      report('file', $logoPath, $projectRoot, $written === false ? 'FAILED' : 'OK');
+      if ($written === false) {
+        return false;
+      }
     }
 
     $projectFolder = basename($projectRoot);
@@ -1020,4 +1042,24 @@ function ensureFile(string $path, string $root, string $content = ''): bool
 
     report('file', $path, $root, 'OK');
     return true;
+}
+
+function printMadeBy(): void
+{
+  $art = <<<'TXT'
+
+┏┳┓┏━┓╺┳┓┏━╸   ┏┓ ╻ ╻
+┃┃┃┣━┫ ┃┃┣╸    ┣┻┓┗┳┛
+╹ ╹╹ ╹╺┻┛┗━╸   ┗━┛ ╹ 
+ ██████╗ ██████╗ ██████╗ ███████╗███████╗
+██╔════╝██╔═══██╗██╔══██╗██╔════╝╚══███╔╝
+██║     ██║   ██║██║  ██║█████╗    ███╔╝ 
+██║     ██║   ██║██║  ██║██╔══╝   ███╔╝  
+╚██████╗╚██████╔╝██████╔╝███████╗███████╗
+ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝
+
+Follow: https://github.com/ZheyUse
+TXT;
+
+  echo $art . PHP_EOL;
 }
