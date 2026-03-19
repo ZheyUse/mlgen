@@ -7,6 +7,21 @@ set "SOURCE_DIR=%~dp0"
 echo Installing ML CLI...
 echo Target: %TARGET_DIR%
 
+rem Display ASCII art intro before installation
+powershell -NoProfile -ExecutionPolicy Bypass -Command "@'
+\n┏┳┓┏━┓╺┳┓┏━╸   ┏┓ ╻ ╻
+┃┃┃┣━┫ ┃┃┣╸    ┣┻┓┗┳┛
+╹ ╹╹ ╹╺┻┛┗━╸   ┗━┛ ╹ 
+ ██████╗ ██████╗ ██████╗ ███████╗███████╗
+██╔════╝██╔═══██╗██╔══██╗██╔════╝╚══███╔╝
+██║     ██║   ██║██║  ██║█████╗    ███╔╝ 
+██║     ██║   ██║██║  ██║██╔══╝   ███╔╝  
+╚██████╗╚██████╔╝██████╔╝███████╗███████╗
+ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝
+\nFollow: https://github.com/ZheyUse
+\n'@ | Write-Host"
+
+
 rem Download required CLI files from the GitHub repo if not bundling locally.
 set "RAW_BASE=https://raw.githubusercontent.com/ZheyUse/mlgen/main"
 
@@ -81,5 +96,23 @@ echo.
 echo Installation complete.
 echo You can now run: ml create banking-system
 echo If command is not recognized in this window, open a new terminal.
+
+rem Write the "Made By" ASCII art into the installed CLI folder and show it
+powershell -NoProfile -ExecutionPolicy Bypass -Command "@'
+\n┏┳┓┏━┓╺┳┓┏━╸   ┏┓ ╻ ╻
+┃┃┃┣━┫ ┃┃┣╸    ┣┻┓┗┳┛
+╹ ╹╹ ╹╺┻┛┗━╸   ┗━┛ ╹ 
+ ██████╗ ██████╗ ██████╗ ███████╗███████╗
+██╔════╝██╔═══██╗██╔══██╗██╔════╝╚══███╔╝
+██║     ██║   ██║██║  ██║█████╗    ███╔╝ 
+██║     ██║   ██║██║  ██║██╔══╝   ███╔╝  
+╚██████╗╚██████╔╝██████╔╝███████╗███████╗
+ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝
+\n+Follow: https://github.com/ZheyUse
+\n'@ | Out-File -FilePath '%TARGET_DIR%\made-by.txt' -Encoding UTF8"
+
+echo.
+type "%TARGET_DIR%\made-by.txt"
+echo.
 
 exit /b 0
