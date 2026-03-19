@@ -935,6 +935,37 @@ MD,
         continue;
       }
 
+      // Attempt to download the logo from the repository raw URL before
+      // falling back to a transparent placeholder.
+      $repoRawBase = 'https://raw.githubusercontent.com/ZheyUse/mlgen/main/assets/images';
+      $rawUrl = $repoRawBase . '/' . $logoFileName;
+      $downloaded = null;
+
+      if (function_exists('curl_version')) {
+        $ch = curl_init($rawUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        $body = curl_exec($ch);
+        $ok = curl_getinfo($ch, CURLINFO_HTTP_CODE) === 200 && $body !== false;
+        curl_close($ch);
+        if ($ok) $downloaded = $body;
+      } else {
+        $opts = stream_context_create(['http' => ['timeout' => 15]]);
+        $body = @file_get_contents($rawUrl, false, $opts);
+        if ($body !== false) $downloaded = $body;
+      }
+
+      if ($downloaded !== null) {
+        $written = file_put_contents($logoPath, $downloaded);
+        report('file', $logoPath, $projectRoot, $written === false ? 'FAILED' : 'OK');
+        if ($written === false) {
+          return false;
+        }
+        continue;
+      }
+
+      // Fallback: write a tiny transparent PNG so scaffold still succeeds.
       $written = file_put_contents($logoPath, $transparentPng);
       report('file', $logoPath, $projectRoot, $written === false ? 'FAILED' : 'OK');
       if ($written === false) {

@@ -17,15 +17,8 @@ if not exist "%SOURCE_DIR%ml.bat" (
   exit /b 1
 )
 
-if not exist "%SOURCE_DIR%assets\images\logo1.png" (
-  echo [ERROR] Missing source file: assets\images\logo1.png
-  exit /b 1
-)
-
-if not exist "%SOURCE_DIR%assets\images\logo2.png" (
-  echo [ERROR] Missing source file: assets\images\logo2.png
-  exit /b 1
-)
+rem If local assets are missing, we'll download them from the repository instead
+rem (don't fail the installer just because source assets aren't present).
 
 if not exist "%TARGET_DIR%" (
   mkdir "%TARGET_DIR%" 2>nul
@@ -60,16 +53,23 @@ if not exist "%TARGET_DIR%\assets\images" (
   )
 )
 
-copy /Y "%SOURCE_DIR%assets\images\logo1.png" "%TARGET_DIR%\assets\images\logo1.png" >nul
-if errorlevel 1 (
-  echo [ERROR] Failed to copy assets\images\logo1.png
-  exit /b 1
-)
+set "RAW_BASE=https://raw.githubusercontent.com/ZheyUse/mlgen/main/assets/images"
 
-copy /Y "%SOURCE_DIR%assets\images\logo2.png" "%TARGET_DIR%\assets\images\logo2.png" >nul
-if errorlevel 1 (
-  echo [ERROR] Failed to copy assets\images\logo2.png
-  exit /b 1
+for %%F in (logo1.png logo2.png) do (
+  if exist "%SOURCE_DIR%assets\images\%%F" (
+    copy /Y "%SOURCE_DIR%assets\images\%%F" "%TARGET_DIR%\assets\images\%%F" >nul
+    if errorlevel 1 (
+      echo [ERROR] Failed to copy assets\images\%%F
+      exit /b 1
+    )
+  ) else (
+    echo Downloading %%F from GitHub...
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "try{ (New-Object Net.WebClient).DownloadFile('%RAW_BASE%/%%F', '%TARGET_DIR%\\assets\\images\\%%F'); exit 0 } catch { exit 2 }"
+    if errorlevel 1 (
+      echo [ERROR] Failed to download %%F
+      exit /b 1
+    )
+  )
 )
 
 echo Copied CLI files and assets.
