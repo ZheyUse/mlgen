@@ -3,6 +3,28 @@ setlocal
 
 set "TARGET_DIR=C:\ML CLI\Tools"
 
+rem If this script is running from inside TARGET_DIR, copy to TEMP and run there.
+rem This avoids locking the folder/script while trying to delete it.
+if /I "%~1"=="--from-temp" goto :RUN_UNINSTALL
+
+if /I "%~dp0"=="%TARGET_DIR%\" (
+  set "TMP_RUNNER=%TEMP%\ml_uninstall_runner_%RANDOM%%RANDOM%.bat"
+  copy /Y "%~f0" "%TMP_RUNNER%" >nul
+  if errorlevel 1 (
+    echo [ERROR] Failed to create temporary uninstaller runner.
+    echo Try running this script as Administrator.
+    exit /b 1
+  )
+  call "%TMP_RUNNER%" --from-temp
+  set "EXIT_CODE=%ERRORLEVEL%"
+  del "%TMP_RUNNER%" >nul 2>&1
+  exit /b %EXIT_CODE%
+)
+
+:RUN_UNINSTALL
+
+cd /d "%TEMP%" >nul 2>&1
+
 echo Uninstalling ML CLI...
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$target='C:\ML CLI\Tools'; $userPath=[Environment]::GetEnvironmentVariable('Path','User'); if(-not $userPath){ Write-Output 'PATH_EMPTY'; exit 0 }; $parts=$userPath -split ';' | Where-Object { $_ -and $_.Trim() -ne '' }; $filtered=@(); foreach($p in $parts){ if($p.TrimEnd('\\') -ine $target.TrimEnd('\\')){ $filtered += $p } }; if($filtered.Count -ne $parts.Count){ [Environment]::SetEnvironmentVariable('Path',($filtered -join ';'),'User'); Write-Output 'PATH_REMOVED'; } else { Write-Output 'PATH_NOT_FOUND'; }" > "%TEMP%\ml_uninstall_path_result.txt"
