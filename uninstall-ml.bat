@@ -21,7 +21,25 @@ if /I "%PATH_RESULT%"=="PATH_REMOVED" (
 
 if exist "%TARGET_DIR%" (
   echo Removing %TARGET_DIR%...
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "$t='%TARGET_DIR%'; try{ Remove-Item -LiteralPath $t -Recurse -Force -ErrorAction Stop; Write-Output 'RM_OK' } catch { Write-Output 'RM_ERR: ' + $_.Exception.Message; if ($_.Exception.InnerException) { Write-Output $_.Exception.InnerException.Message }; exit 2 }" > "%TEMP%\ml_rm_result.txt"
+
+  rem Clear read-only attributes recursively to reduce delete failures
+  attrib -R "%TARGET_DIR%\*" /S /D >nul 2>&1
+
+  set "PS_SCRIPT=%TEMP%\ml_uninstall_script.ps1"
+  (echo $t = '%TARGET_DIR%') > "%PS_SCRIPT%"
+  (echo try {) >> "%PS_SCRIPT%"
+  (echo     Remove-Item -LiteralPath $t -Recurse -Force -ErrorAction Stop;) >> "%PS_SCRIPT%"
+  (echo     Write-Output 'RM_OK') >> "%PS_SCRIPT%"
+  (echo } catch {) >> "%PS_SCRIPT%"
+  (echo     Write-Output 'RM_ERR: ' + $_.Exception.Message) >> "%PS_SCRIPT%"
+  (echo     if ($_.Exception.InnerException) { Write-Output $_.Exception.InnerException.Message }) >> "%PS_SCRIPT%"
+  (echo     Write-Output 'RM_STACK:') >> "%PS_SCRIPT%"
+  (echo     Write-Output $_.ScriptStackTrace) >> "%PS_SCRIPT%"
+  (echo     exit 2) >> "%PS_SCRIPT%"
+  (echo }) >> "%PS_SCRIPT%"
+
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" > "%TEMP%\ml_rm_result.txt" 2>&1
+  del "%PS_SCRIPT%" >nul 2>&1
 
   set "RM_RESULT="
   set /p RM_RESULT=<"%TEMP%\ml_rm_result.txt"
@@ -32,6 +50,10 @@ if exist "%TARGET_DIR%" (
   ) else (
     echo [ERROR] Failed to remove %TARGET_DIR%:
     echo %RM_RESULT%
+    echo.
+    echo Additional info: listing folder contents to help debug:
+    dir "%TARGET_DIR%" /A /B 2>nul || echo [ERROR] Unable to list contents (folder may be locked)
+    echo.
     echo Close terminals/processes using files in that folder and try again, or remove the folder manually.
     exit /b 1
   )
