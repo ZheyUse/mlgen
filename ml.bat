@@ -7,12 +7,22 @@ set "ML_VERSION=1.0.0"
 
 rem Handle top-level flags before invoking the PHP generator
 if /I "%~1"=="--v" (
+      echo.
+echo ==============================
+echo ML CLI - M LHUILLIER FILE GENERATOR
+echo https://github.com/ZheyUse
+echo ==============================
+echo.
         echo ML CLI version %ML_VERSION%
         exit /b 0
 )
 if /I "%~1"=="--h" (
-        echo ML CLI
-        echo.
+          echo.
+echo ==============================
+echo ML CLI - M LHUILLIER FILE GENERATOR
+echo https://github.com/ZheyUse
+echo ==============================
+echo.
         echo Usage: ml create ^<project_name^>
         echo.
         echo Flags:
