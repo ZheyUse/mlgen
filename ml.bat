@@ -2,23 +2,33 @@
 setlocal
 
 set "ML_SCRIPT=%~dp0generate-file-structure.php"
+rem CLI version
+set "ML_VERSION=1.0.0"
+
+rem Handle top-level flags before invoking the PHP generator
+if /I "%~1"=="--v" (
+        echo ML CLI version %ML_VERSION%
+        exit /b 0
+)
+if /I "%~1"=="--h" (
+        echo ML CLI
+        echo.
+        echo Usage: ml create ^<project_name^>
+        echo.
+        echo Flags:
+        echo   --h    Show this help
+        echo   --v    Show version
+        exit /b 0
+)
 
 rem Show short ASCII intro when the CLI is invoked interactively
-if "%~0"=="%~0" (
-    echo.
-    rem Print full "Made By" ASCII art as CLI intro
-    echo ┏┳┓┏━┓╺┳┓┏━╸   ┏┓ ╻ ╻
-    echo ┃┃┃┣━┫ ┃┃┣╸    ┣┻┓┗┳┛
-    echo ╹ ╹╹ ╹╺┻┛┗━╸   ┗━┛ ╹ 
-    echo  ██████╗ ██████╗ ██████╗ ███████╗███████╗
-    echo ██╔════╝██╔═══██╗██╔══██╗██╔════╝╚══███╔╝
-    echo ██║     ██║   ██║██║  ██║█████╗    ███╔╝ 
-    echo ██║     ██║   ██║██║  ██║██╔══╝   ███╔╝  
-    echo ╚██████╗╚██████╔╝██████╔╝███████╗███████╗
-    echo  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝
-    echo.
-    echo Follow: https://github.com/ZheyUse
-    echo.
+if /I not "%~1"=="--v" if /I not "%~1"=="--h" (
+   echo.
+echo ==============================
+echo ML CLI - M LHUILLIER FILE GENERATOR
+echo https://github.com/ZheyUse
+echo ==============================
+echo.
 )
 
 if exist "C:\xampp\php\php.exe" (
