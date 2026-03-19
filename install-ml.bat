@@ -45,34 +45,9 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist "%TARGET_DIR%\assets\images" (
-  mkdir "%TARGET_DIR%\assets\images" 2>nul
-  if errorlevel 1 (
-    echo [ERROR] Failed to create %TARGET_DIR%\assets\images
-    exit /b 1
-  )
-)
-
-set "RAW_BASE=https://raw.githubusercontent.com/ZheyUse/mlgen/main/assets/images"
-
-for %%F in (logo1.png logo2.png) do (
-  if exist "%SOURCE_DIR%assets\images\%%F" (
-    copy /Y "%SOURCE_DIR%assets\images\%%F" "%TARGET_DIR%\assets\images\%%F" >nul
-    if errorlevel 1 (
-      echo [ERROR] Failed to copy assets\images\%%F
-      exit /b 1
-    )
-  ) else (
-    echo Downloading %%F from GitHub...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "try{ (New-Object Net.WebClient).DownloadFile('%RAW_BASE%/%%F', '%TARGET_DIR%\\assets\\images\\%%F'); exit 0 } catch { exit 2 }"
-    if errorlevel 1 (
-      echo [ERROR] Failed to download %%F
-      exit /b 1
-    )
-  )
-)
-
-echo Copied CLI files and assets.
+rem Do not install project assets into the CLI tools folder. The generator
+rem will fetch project images into each created project's `src/assets/images`.
+echo Copied CLI files.
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$target='C:\ML CLI\Tools'; $userPath=[Environment]::GetEnvironmentVariable('Path','User'); $parts=@(); if($userPath){$parts=$userPath -split ';' | Where-Object { $_ -and $_.Trim() -ne '' }}; $exists=$false; foreach($p in $parts){ if($p.TrimEnd('\\') -ieq $target.TrimEnd('\\')){ $exists=$true; break } }; if(-not $exists){ $newPath=(($parts + $target) | Select-Object -Unique) -join ';'; [Environment]::SetEnvironmentVariable('Path',$newPath,'User'); Write-Output 'PATH_ADDED'; } else { Write-Output 'PATH_EXISTS'; }" > "%TEMP%\ml_path_result.txt"
 

@@ -20,13 +20,21 @@ if /I "%PATH_RESULT%"=="PATH_REMOVED" (
 )
 
 if exist "%TARGET_DIR%" (
-  rmdir /S /Q "%TARGET_DIR%"
-  if exist "%TARGET_DIR%" (
-    echo [ERROR] Failed to remove %TARGET_DIR%
-    echo Close terminals/processes using files in that folder and try again.
+  echo Removing %TARGET_DIR%...
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "$t='%TARGET_DIR%'; try{ Remove-Item -LiteralPath $t -Recurse -Force -ErrorAction Stop; Write-Output 'RM_OK' } catch { Write-Output 'RM_ERR: ' + $_.Exception.Message; if ($_.Exception.InnerException) { Write-Output $_.Exception.InnerException.Message }; exit 2 }" > "%TEMP%\ml_rm_result.txt"
+
+  set "RM_RESULT="
+  set /p RM_RESULT=<"%TEMP%\ml_rm_result.txt"
+  del "%TEMP%\ml_rm_result.txt" >nul 2>&1
+
+  if /I "%RM_RESULT%"=="RM_OK" (
+    echo Removed %TARGET_DIR%
+  ) else (
+    echo [ERROR] Failed to remove %TARGET_DIR%:
+    echo %RM_RESULT%
+    echo Close terminals/processes using files in that folder and try again, or remove the folder manually.
     exit /b 1
   )
-  echo Removed %TARGET_DIR%
 ) else (
   echo Directory not found: %TARGET_DIR%
 )
