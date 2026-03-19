@@ -7,19 +7,13 @@ set "SOURCE_DIR=%~dp0"
 echo Installing ML CLI...
 echo Target: %TARGET_DIR%
 
-rem Display ASCII art intro before installation
-powershell -NoProfile -ExecutionPolicy Bypass -Command "@'
-\n┏┳┓┏━┓╺┳┓┏━╸   ┏┓ ╻ ╻
-┃┃┃┣━┫ ┃┃┣╸    ┣┻┓┗┳┛
-╹ ╹╹ ╹╺┻┛┗━╸   ┗━┛ ╹ 
- ██████╗ ██████╗ ██████╗ ███████╗███████╗
-██╔════╝██╔═══██╗██╔══██╗██╔════╝╚══███╔╝
-██║     ██║   ██║██║  ██║█████╗    ███╔╝ 
-██║     ██║   ██║██║  ██║██╔══╝   ███╔╝  
-╚██████╗╚██████╔╝██████╔╝███████╗███████╗
- ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝
-\nFollow: https://github.com/ZheyUse
-\n'@ | Write-Host"
+rem Console-friendly intro before installation (ASCII fallback)
+echo.
+echo ==============================
+echo ML CLI Installer
+echo https://github.com/ZheyUse
+echo ==============================
+echo.
 
 
 rem Download required CLI files from the GitHub repo if not bundling locally.
@@ -97,22 +91,27 @@ echo Installation complete.
 echo You can now run: ml create banking-system
 echo If command is not recognized in this window, open a new terminal.
 
-rem Write the "Made By" ASCII art into the installed CLI folder and show it
-powershell -NoProfile -ExecutionPolicy Bypass -Command "@'
-\n┏┳┓┏━┓╺┳┓┏━╸   ┏┓ ╻ ╻
-┃┃┃┣━┫ ┃┃┣╸    ┣┻┓┗┳┛
-╹ ╹╹ ╹╺┻┛┗━╸   ┗━┛ ╹ 
- ██████╗ ██████╗ ██████╗ ███████╗███████╗
-██╔════╝██╔═══██╗██╔══██╗██╔════╝╚══███╔╝
-██║     ██║   ██║██║  ██║█████╗    ███╔╝ 
-██║     ██║   ██║██║  ██║██╔══╝   ███╔╝  
-╚██████╗╚██████╔╝██████╔╝███████╗███████╗
- ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝
-\n+Follow: https://github.com/ZheyUse
-\n'@ | Out-File -FilePath '%TARGET_DIR%\made-by.txt' -Encoding UTF8"
+
+rem Write the "Made By" ASCII art into the installed CLI folder (safe batch write)
+(
+  echo ┏┳┓┏━┓╺┳┓┏━╸   ┏┓ ╻ ╻
+  echo ┃┃┃┣━┫ ┃┃┣╸    ┣┻┓┗┳┛
+  echo ╹ ╹╹ ╹╺┻┛┗━╸   ┗━┛ ╹ 
+  echo  ██████╗ ██████╗ ██████╗ ███████╗███████╗
+  echo ██╔════╝██╔═══██╗██╔══██╗██╔════╝╚══███╔╝
+  echo ██║     ██║   ██║██║  ██║█████╗    ███╔╝ 
+  echo ██║     ██║   ██║██║  ██║██╔══╝   ███╔╝  
+  echo ╚██████╗╚██████╔╝██████╔╝███████╗███████╗
+  echo  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝
+  echo.
+  echo Follow: https://github.com/ZheyUse
+) > "%TARGET_DIR%\made-by.txt"
 
 echo.
-type "%TARGET_DIR%\made-by.txt"
+echo ==============================
+echo ML CLI Installed to %TARGET_DIR%
+echo https://github.com/ZheyUse
+echo ==============================
 echo.
 
 exit /b 0
